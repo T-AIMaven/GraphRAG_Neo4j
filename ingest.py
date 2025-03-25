@@ -64,11 +64,7 @@ def create_uniqueness_constraints():
             session.execute_write(set_uniquness_constraints, node)
 
 
-def process_product_category_supplier_csv(
-    product_file_path: str,
-    category_file_path: str,
-    supplier_file_path: str,
-) -> pd.DataFrame:
+def process_test_csv() -> pd.DataFrame:
     """
     Reads and processes CSV files containing product, category, and supplier data, merging them into a single DataFrame.
 
@@ -84,31 +80,9 @@ def process_product_category_supplier_csv(
 
     try:
         LOGGER.info(f"Reading data from {product_file_path}")
-        product_df = pd.read_csv(product_file_path)
+        test_df = pd.read_csv("data/test.csv")
 
-        LOGGER.info(f"Reading data from {category_file_path}")
-        category_df = pd.read_csv(category_file_path)
-
-        LOGGER.info("Merging product and category data")
-        product_category_df = pd.merge(
-            product_df, category_df, on='categoryID')
-
-        LOGGER.info(f"Reading data from {supplier_file_path}")
-        supplier_df = pd.read_csv(supplier_file_path)
-
-        LOGGER.info("Merging product, category and supplier data")
-        product_category_supplier_df = pd.merge(
-            product_category_df, supplier_df, on='supplierID', how='left')
-
-        LOGGER.info("Cleaning data, replacing NA values with Unknown")
-        product_category_supplier_df["region"] = product_category_supplier_df["region"].replace({
-                                                                                                pd.NA: "Unknown"})
-        product_category_supplier_df["fax"] = product_category_supplier_df["fax"].replace({
-                                                                                          pd.NA: "Unknown"})
-        product_category_supplier_df["homePage"] = product_category_supplier_df["homePage"].replace({
-                                                                                                    pd.NA: "Unknown"})
-
-        return product_category_supplier_df
+        return test_df
     except Exception as e:
         LOGGER.error(f"Error reading CSV data: {e}")
 
@@ -164,8 +138,8 @@ def insert_data(tx, row):
 
 
 @retry(tries=100, delay=10)
-def load_product_category_supply_into_graph(
-    product_category_supplier_df: pd.DataFrame,
+def load_test_into_graph(
+    test_df: pd.DataFrame,
 ):
     """
     Loads product, category, and supplier data into a Neo4j graph database.
@@ -175,7 +149,7 @@ def load_product_category_supply_into_graph(
     into the graph using a write transaction. The function uses retry logic to ensure 
     successful data insertion, retrying up to 100 times with a 10-second delay between attempts.
 
-    :param product_category_supplier_df: A pandas DataFrame containing the product, category, 
+    :param test_df: A pandas DataFrame containing the product, category, 
                                          and supplier data to be inserted into the graph.
     """
 
@@ -186,7 +160,7 @@ def load_product_category_supply_into_graph(
 
     LOGGER.info("Inserting data into Neo4j")
     with driver.session() as session:
-        for _, row in product_category_supplier_df.iterrows():
+        for _, row in test_df.iterrows():
             session.execute_write(insert_data, row.to_dict())
 
     LOGGER.info("Data inserted into Neo4j")
@@ -455,30 +429,29 @@ def main():
     LOGGER.info("Uniqueness constraints created successfully.")
 
     LOGGER.info("Processing product, category, and supplier data...")
-    product_category_supplier_df = process_product_category_supplier_csv(
-        PRODUCT_CSV_FILE_PATH, CATEGORY_CSV_FILEPATH, SUPPLIER_CSV_FILE_PATH
-    )
+    
+    test_df = process_test_csv()
     LOGGER.info("Data processed successfully.")
 
     LOGGER.info("Loading product, category, and supplier data into Neo4j...")
-    load_product_category_supply_into_graph(product_category_supplier_df)
+    load_test_into_graph(test_df)
     LOGGER.info("Data loaded successfully.")
 
-    LOGGER.info(
-        "Processing order, order details, customer, shipper, and employee data...")
-    orders_order_details_customer_shipper_employee_df = process_order_order_details_product_shipper_employee_customer_csv(
-        ORDER_CSV_FILE_PATH, ORDER_DETAILS_CSV_FILE_PATH, CUSTOMER_CSV_FILE_PATH, SHIPPER_CSV_FILE_PATH, EMPLOYEE_CSV_FILE_PATH
-    )
+    # LOGGER.info(
+    #     "Processing order, order details, customer, shipper, and employee data...")
+    # orders_order_details_customer_shipper_employee_df = process_order_order_details_product_shipper_employee_customer_csv(
+    #     ORDER_CSV_FILE_PATH, ORDER_DETAILS_CSV_FILE_PATH, CUSTOMER_CSV_FILE_PATH, SHIPPER_CSV_FILE_PATH, EMPLOYEE_CSV_FILE_PATH
+    # )
 
-    LOGGER.info("Inserting manager records into Neo4j...")
-    insert_manager_record(orders_order_details_customer_shipper_employee_df)
-    LOGGER.info("Manager records inserted successfully.")
+    # LOGGER.info("Inserting manager records into Neo4j...")
+    # insert_manager_record(orders_order_details_customer_shipper_employee_df)
+    # LOGGER.info("Manager records inserted successfully.")
 
-    LOGGER.info(
-        "Loading order, order details, shippers, employees, and customer data into Neo4j...")
-    load_order_order_details_shippers_employees_and_customer_data_into_graph(
-        orders_order_details_customer_shipper_employee_df[:250])
-    LOGGER.info("Data loaded successfully.")
+    # LOGGER.info(
+    #     "Loading order, order details, shippers, employees, and customer data into Neo4j...")
+    # load_order_order_details_shippers_employees_and_customer_data_into_graph(
+    #     orders_order_details_customer_shipper_employee_df[:250])
+    # LOGGER.info("Data loaded successfully.")
 
 
 if __name__ == "__main__":
