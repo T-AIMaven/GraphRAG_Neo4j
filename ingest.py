@@ -93,9 +93,11 @@ def main():
         LOGGER.error(f"Failed to connect to Neo4j: {e}")
 
 if __name__ == "__main__":
-    main()
-
+    # main()
+    start_time = time.time()
     from query import general_qa_tool
 
-    response = general_qa_tool("who is the CEO of Xngen company?")
-    print(response)
+    response = general_qa_tool("who is Jeff macpherson?")
+    # print(response)
+    start_time = time.time()
+    print(f"Time to create agent executor: {time.time() - start_time:.2f} seconds")

@@ -12,6 +12,7 @@ graph = Neo4jGraph(
 
 graph.refresh_schema()
 
+
 cypher_generation_template_str = """
 Task:
 Generate Cypher query for a Neo4j graph database.
@@ -24,16 +25,19 @@ Schema:
 {schema}
 
 Note:
-Do not include any explanations or apologies in your responses.
-Do not respond to any questions that might ask anything other than
-for you to construct a Cypher statement. Do not include any text except
-the generated Cypher statement. Make sure the direction of the relationship is
-correct in your queries. Make sure you alias both entities and relationships
-properly. Do not run any queries that would add to or delete from
-the database. Make sure to alias all statements that follow as with
-statement (e.g. WITH c as customer, o.orderID as order_id).
-If you need to divide numbers, make sure to
-filter the denominator to be non-zero.
+- Enclose all property names in backticks (e.g., `propertyName`) to handle spaces or special characters.
+- Do not include any explanations or apologies in your responses.
+- Do not respond to any questions that might ask anything other than
+  for you to construct a Cypher statement. Do not include any text except
+  the generated Cypher statement. Make sure the direction of the relationship is
+  correct in your queries. Make sure you alias both entities and relationships
+  properly. Do not run any queries that would add to or delete from
+  the database. Make sure to alias all statements that follow as with
+  statement (e.g. WITH c as customer, o.orderID as order_id).
+- If you need to divide numbers, make sure to
+  filter the denominator to be non-zero.
+- For string comparisons, ensure case-insensitivity by using the `toLower()` function
+  on both the input string and the property being compared.
 
 Examples:
 # Retrieve the total number of orders placed by each customer.
@@ -50,30 +54,28 @@ LIMIT 5
 MATCH (e:Employee)-[r:PROCESSED_BY]->(o:Order)
 RETURN e.employeeID AS employee_id, COUNT(o) AS orders_processed
 
-# take a product, find out who ordered it and which shipping company shipped the order.
-MATCH (s: Shipper)<-[sr: SHIPPED_BY ]-(o: Order{{orderID: 10249}})-[cr: ORDERED_BY]->(c: Customer)
-RETURN s, sr, o, c, cr;
-
 # Get all information about a given order, all its relationships and nodes connected to it.
-MATCH (o: Order)-[r]-(n)
-WHERE o.orderID = 10249
+MATCH (o:Order)-[r]-(n)
 RETURN o, r, n;
 
-# Get freight cost for each shippment to Germany by Speedy Express.
-MATCH (s: Shipper)<-[sr: SHIPPED_BY]-(o: Order)-[i:INCLUDES]->(p: Product)
-WHERE s.companyName = "Speedy Express" 
-AND o.shipCountry = "Germany"
-RETURN  COUNT(*) AS shpments_to_germany,
-o.freight AS freight, p.productName AS product_name;
+# Get freight cost for each shipment to Germany by Speedy Express.
+MATCH (s:Shipper)<-[sr:SHIPPED_BY]-(o:Order)-[i:INCLUDES]->(p:Product)
+WHERE s.`companyName` = "Speedy Express" 
+AND o.`shipCountry` = "Germany"
+RETURN COUNT(*) AS shipments_to_germany,
+o.`freight` AS freight, p.`productName` AS product_name;
 
 # Get sum of total freight cost for each order by Speedy Express in Germany.
-MATCH (s: Shipper)<-[sr: SHIPPED_BY]-(o: Order)-[i:INCLUDES]->(p: Product)
-WHERE s.companyName = "Speedy Express" 
-AND o.shipCountry = "Germany"
-RETURN  COUNT(*) AS shpments_to_germany,
-SUM(o.freight) AS freight;
+MATCH (s:Shipper)<-[sr:SHIPPED_BY]-(o:Order)-[i:INCLUDES]->(p:Product)
+WHERE s.`companyName` = "Speedy Express" 
+AND o.`shipCountry` = "Germany"
+RETURN COUNT(*) AS shipments_to_germany,
+SUM(o.`freight`) AS freight;
 
-
+# Find a person by name (case-insensitive).
+MATCH (p:Person)
+WHERE toLower(p.`name`) = toLower("{question}")
+RETURN p;
 
 String category values:
 Use existing strings and values from the schema provided. 
@@ -124,7 +126,7 @@ cypher_chain = GraphCypherQAChain.from_llm(
     validate_cypher=True,
     qa_prompt=qa_generation_prompt,
     cypher_prompt=cypher_generation_prompt,
-    qa_llm=ChatOpenAI(model="gpt4o", temperature=0),
-    cypher_llm=ChatOpenAI(model="gpt4o", temperature=0),
+    qa_llm=ChatOpenAI(model="gpt-4o", temperature=0),
+    cypher_llm=ChatOpenAI(model="gpt-4o", temperature=0),
     allow_dangerous_requests=True,
 )
